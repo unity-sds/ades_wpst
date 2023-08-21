@@ -87,8 +87,8 @@ class ADES_HYSDS(ADES_ABC):
         command = f"{cwl_wfl}"
         recommended_queues = ["verdi-job_worker"]
         disk_usage = "500MB"
-        soft_time_limit = 84600
-        time_limit = 84660
+        soft_time_limit = 86400
+        time_limit = 86460
         imported_worker_files = {
             "/static-data": ["/static-data", "rw"],
             "/tmp": ["/tmp", "rw"],
