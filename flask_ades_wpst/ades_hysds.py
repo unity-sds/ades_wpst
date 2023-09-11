@@ -51,34 +51,6 @@ class ADES_HYSDS(ADES_ABC):
     def _generate_job_id_stub(self, qsub_stdout):
         return ".".join(qsub_stdout.strip().split(".")[:2])
 
-    def _pbs_job_state_to_status_str(self, work_dir, job_state):
-        pbs_job_state_to_status = {
-            "Q": "accepted",
-            "R": "running",
-            "E": "running",
-        }
-        if job_state in pbs_job_state_to_status:
-            status = pbs_job_state_to_status[job_state]
-        elif job_state == "F":
-            # Job finished; need to check cwl-runner exit-code to determine
-            # if the job succeeded or failed.  In the auto-generated, PBS job
-            # submission script, the exit code is saved to a file.
-            exit_code_fname = os.path.join(work_dir, self._exit_code_fname)
-            try:
-                with open(exit_code_fname, "r") as f:
-                    d = json.loads(f.read())
-                    exit_code = d["exit_code"]
-                    if exit_code == 0:
-                        status = "successful"
-                    else:
-                        status = "failed"
-            except:
-                status = "unknown-not-qref"
-        else:
-            # Encountered a PBS job state that is not supported.
-            status = "unknown-no-exit-code"
-        return status
-
     def _construct_job_spec(self, cwl_wfl, wfl_inputs):
         """
         create the job spec for a process to deploy
@@ -375,15 +347,6 @@ class ADES_HYSDS(ADES_ABC):
         try:
             # Publish job to JobPublisher passed in the job_spec
             hysds_job = job.submit_job(queue="verdi-job_worker", priority=0, tag="test")
-            job = Job(
-                id=hysds_job.job_id,
-                status="submitted",
-                inputs=params,
-                outputs={},
-                labels=labels,
-            )
-
-            job_spec["job_publisher"].publish_job_change(job)
 
             print(f"Submitted job with id {hysds_job.job_id}")
 
@@ -395,21 +358,8 @@ class ADES_HYSDS(ADES_ABC):
                 "error": None,
             }
         except Exception as ex:
-            # Publish job to JobPublisher passed in the job_spec
-            try:
-                job = Job(
-                    id=hysds_job.job_id,
-                    status="failed",
-                    inputs=params,
-                    outputs={},
-                    labels=labels,
-                )
-                job_spec["job_publisher"].publish_job_change(job)
-            except (AttributeError, UnboundLocalError) as e:
-                print(f"Failed to publish job, no hysds job id:\n{e}")
-
-            error = ex
-            return {"job_id": hysds_job.job_id, "status": "failed", "inputs": params, "error": str(error)}
+            error = str(ex)
+            return {"job_id": hysds_job.job_id, "status": "failed", "inputs": params, "error": error}
 
     def dismiss_job(self, proc_id, job_id):
         # We can only dismiss jobs that were last in accepted or running state.
