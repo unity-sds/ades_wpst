@@ -45,11 +45,13 @@ class ADES_Base:
 
         # set of job inputs to append to process deploy requests and job execute requests
         # { "job_parameter_name": "ENVIRONMENT_VARIABLE_WITH_JOB_PARAMETER_VALUE" }
-        self._job_config_inputs = {"jobs_data_sns_topic_arn": "JOBS_DATA_SNS_TOPIC_ARN",
-                                   "dapa_api": "DAPA_API",
-                                   "client_id": "CLIENT_ID",
-                                   "staging_bucket": "STAGING_BUCKET"}
-        
+        self._job_config_inputs = {
+            "jobs_data_sns_topic_arn": "JOBS_DATA_SNS_TOPIC_ARN",
+            "dapa_api": "DAPA_API",
+            "client_id": "CLIENT_ID",
+            "staging_bucket": "STAGING_BUCKET",
+        }
+
     def proc_dict(self, proc):
         return {
             "id": proc[0],
@@ -76,7 +78,10 @@ class ADES_Base:
         TODO: sqlite_get_proc vulnerable to sql injeciton through proc_id
         """
         saved_proc = sqlite_get_proc(proc_id)
-        return self.proc_dict(saved_proc)
+        proc_dict = {}
+        if saved_proc:
+            proc_dict = self.proc_dict(saved_proc)
+        return proc_dict
 
     def deploy_proc(self, req_proc):
         """
@@ -108,7 +113,9 @@ class ADES_Base:
 
         # add unity-sps workflow step inputs to process inputs
         backend_req_proc = copy.deepcopy(req_proc)
-        backend_req_proc["processDescription"]["process"]["inputs"] += [{"id": key} for key in self._job_config_inputs.keys()]
+        backend_req_proc["processDescription"]["process"]["inputs"] += [
+            {"id": key} for key in self._job_config_inputs.keys()
+        ]
 
         try:
             self._ades.deploy_proc(backend_req_proc)
@@ -174,23 +181,31 @@ class ADES_Base:
         # job_id = f"{proc_id}-{hashlib.sha1((json.dumps(job_inputs, sort_keys=True) + now).encode()).hexdigest()}"
 
         # TODO: relying on backend for job id means we need to pass the job publisher to backend impl code for submit notification
-        # job notifications should originate from this base layer once  
+        # job notifications should originate from this base layer once
 
         # add input values from environment variables
-        job_params["inputs"] += [{"id": key, "data": os.getenv(value)} for key, value in self._job_config_inputs.items()]
+        job_params["inputs"] += [
+            {"id": key, "data": os.getenv(value)}
+            for key, value in self._job_config_inputs.items()
+        ]
         job_spec = {
             "proc_id": proc_id,
             # "process": self.get_proc(proc_id),
             "inputs": job_params,
-            "job_publisher": self._job_publisher
+            "job_publisher": self._job_publisher,
         }
         ades_resp = self._ades.exec_job(job_spec)
 
         # ades_resp will return platform specific information that should be
         # kept in the database with the job ID record
         sqlite_exec_job(proc_id, ades_resp["job_id"], ades_resp["inputs"], ades_resp)
-        return {"code": 201, "location": "{}/processes/{}/jobs/{}".format(self.host, proc_id, ades_resp["job_id"])}
-            
+        return {
+            "code": 201,
+            "location": "{}/processes/{}/jobs/{}".format(
+                self.host, proc_id, ades_resp["job_id"]
+            ),
+        }
+
     def dismiss_job(self, proc_id, job_id):
         """
         Stop / Revoke Job

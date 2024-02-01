@@ -1,4 +1,5 @@
 Flask==2.0.2
+Werkzeug==2.2.2
 requests==2.29.0
 urllib3==1.26.15
 pyyaml==5.4.1

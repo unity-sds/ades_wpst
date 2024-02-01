@@ -49,36 +49,46 @@ def root():
 @app.route("/processes", methods=["GET", "POST"])
 def processes():
     resp_dict = {}
-    status_code = 200
-    ades_base = ADES_Base(app.config)
-    if request.method == "GET":
-        # Retrieve available processes
-        # Get list of all available algorithms
-        proc_list = ades_base.get_procs()
-        resp_dict = {"processes": proc_list}
-    elif request.method == "POST":
-        # Deploy a process
-        # Register a new algorithm
-        req_vals = request.get_json()
-        proc_info = ades_base.deploy_proc(req_vals)
-        resp_dict = {"deploymentResult": {"processSummary": proc_info}}
-        status_code = 201
+    try:
+        status_code = 200
+        ades_base = ADES_Base(app.config)
+        if request.method == "GET":
+            # Retrieve available processes
+            # Get list of all available algorithms
+            proc_list = ades_base.get_procs()
+            resp_dict = {"processes": proc_list}
+        elif request.method == "POST":
+            # Deploy a process
+            # Register a new algorithm
+            req_vals = request.get_json()
+            proc_id = req_vals["processDescription"]["process"]["id"]
+            if ades_base.get_proc(proc_id):
+                raise ValueError(f"Process ({proc_id}) is already deployed.")
+            proc_info = ades_base.deploy_proc(req_vals)
+            resp_dict = {"deploymentResult": {"processSummary": proc_info}}
+            status_code = 201
+    except:
+        status_code = 500
     return resp_dict, status_code, {"ContentType": "application/json"}
 
 
 @app.route("/processes/<procID>", methods=["GET", "DELETE"])
 def processes_id(procID):
     resp_dict = {}
-    status_code = 200
-    ades_base = ADES_Base(app.config)
-    if request.method == "GET":
-        # Retrieve a process description
-        # Get a full description of the algorithm
-        resp_dict = {"process": ades_base.get_proc(procID)}
-    elif request.method == "DELETE":
-        # Undeploy a process
-        # Delete the algorithm
-        resp_dict = {"undeploymentResult": ades_base.undeploy_proc(procID)}
+    try:
+        status_code = 200
+        ades_base = ADES_Base(app.config)
+        if request.method == "GET":
+            # Retrieve a process description
+            # Get a full description of the algorithm
+            proc_dict = ades_base.get_proc(procID)
+            resp_dict = {"process": proc_dict}
+        elif request.method == "DELETE":
+            # Undeploy a process
+            # Delete the algorithm
+            resp_dict = {"undeploymentResult": ades_base.undeploy_proc(procID)}
+    except:
+        status_code = 500
     return resp_dict, status_code, {"ContentType": "application/json"}
 
 
